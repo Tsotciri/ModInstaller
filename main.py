@@ -43,7 +43,7 @@ title = """
 
 print(title)
 
-panel("v0.1")
+panel("v0.2")
 print("")
 
 print("[white bold]Please choose what you want to do for the below choices:[/white bold]")
