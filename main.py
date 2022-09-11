@@ -26,6 +26,16 @@ app_directory = f"C:\\Users\\{user}\\AppData\\Roaming\\.mod-installer\\"
 
 if not os.path.exists(app_directory + ".installed"):
     install()
+    
+with open(app_directory + "data.json", "r") as f:
+        json_data = json.load(f)
+if json_data['version'] < 0.2:
+    print("Updating...")
+    time.sleep(3)
+    with open(app_directory + "data.json", "w") as f:
+        json_data['version'] = 0.2
+        json.dump(json_data,f, indent=2)
+
 
 title = """
 [cyan]
