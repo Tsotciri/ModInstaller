@@ -11,6 +11,15 @@ user = os.getlogin()
 app_directory = f"C:\\Users\\{user}\\AppData\\Roaming\\.mod-installer\\"
 
 def install():
+    if os.path.exists(app_directory + ".installed") == True:
+        print("Updating...")
+        time.sleep(3)
+        with open(app_directory + "data.json", "w") as f:
+            json_data = json.load(f)
+        with open(app_directory + "data.json", "w") as f:
+            json_data['version'] = 0.2
+            json.dump(json_data,f, indent=2)
+
     print("Performing first time setup...")
     time.sleep(3)
     os.mkdir(app_directory)
@@ -19,7 +28,7 @@ def install():
     open(app_directory + "data.json", "x")
     print("[green]Successfully installed ModInstaller")
 
-    default_json_data = {"version": 1.1,"packs": {}}
+    default_json_data = {"version": 0.2,"packs": {}}
 
     with open(app_directory + "data.json", "w") as f:
         json.dump(default_json_data,f, indent=2)
