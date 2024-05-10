@@ -1,7 +1,6 @@
 
 # ModInstaller
 
----
 **NOTICE: This is a third-party application that is NOT associated with mojang, nor we claim to be**
 
 
@@ -9,7 +8,6 @@ ModInstaller is an application to make installing mods for minecraft easier
 
 Currently only the official launcher is supported but support for more launchers is planed.
 
----
 ## Future plans
 
 ### v0.1.0
