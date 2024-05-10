@@ -1,9 +1,10 @@
 from tkinter import *
-import sys
+from sys import exit
 from tkinter import filedialog
 from tkinter import ttk
 import tkinter as tk
 import threading
+from sys import exit
 from tkinter.font import Font
 from tkinter import messagebox as mb
 import os
@@ -79,7 +80,7 @@ def install():
 
 def destroy():
     root.destroy()
-    exit()
+    quit()
 
 
 def browse_button():
@@ -90,7 +91,6 @@ def browse_button():
         json_write(data, app_directory + "data.json")
         gui_path.set(filename)
 
-
 # Root
 root = Tk()
 
@@ -98,14 +98,20 @@ if len(sys.argv) > 1:
     file_path = sys.argv[1]
     mod = ModIndexer(file_path)
 else:
-    mod = ModIndexer(r"C:\Users\Ktsotas\Desktop\MMI-json-format.json")
+    mb.showerror(title=f"MoDpack file not found",
+                 message="A path to a modpack file has not been supplied (E1)")
+    root.destroy()
+    exit()
+
 
 # Geometry and window size
 weight, height = 400, 200
 
 root.title("Mod Installer")
-root.iconbitmap("icon.ico")
-
+try:
+    root.iconbitmap("C:/Program Files (x86)/ModInstaller/icon.ico")
+except TclError:
+    print("Icon not definned")
 # root.maxsize(weight, height)
 # root.minsize(weight, height)
 root.geometry(f"{weight}x{height}")
@@ -157,7 +163,10 @@ else:
 weight, height = 500, 200
 
 win2.title("Mod Installer")
-win2.iconbitmap("icon.ico")
+try:
+    win2.iconbitmap("C:/Program Files (x86)/ModInstaller/icon.ico")
+except TclError:
+    print("Icon not definned")
 
 # win2.maxsize(weight, height)
 # win2.minsize(weight, height)
