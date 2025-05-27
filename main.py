@@ -1,5 +1,6 @@
 from tkinter import *
 from sys import exit
+import sys
 from tkinter import filedialog
 from tkinter import ttk
 import tkinter as tk
@@ -11,9 +12,10 @@ import os
 from time import sleep
 import requests
 import json
-
+from mrpack import MrpackIndexer
 
 # Class
+
 
 class ModIndexer:
     def __init__(self, f_path):
@@ -96,7 +98,13 @@ root = Tk()
 
 if len(sys.argv) > 1:
     file_path = sys.argv[1]
-    mod = ModIndexer(file_path)
+    if ''.join(list(file_path)[-6:]) == "mrpack":
+        print("MR PACK DECTED")
+        mb.showinfo(title='Warning',
+                    message="The pack you are trying to install is an mrpack, mrpacks have limited support.")
+        mod = MrpackIndexer(file_path)
+    else:
+        mod = ModIndexer(file_path)
 else:
     mb.showerror(title=f"MoDpack file not found",
                  message="A path to a modpack file has not been supplied (E1)")
