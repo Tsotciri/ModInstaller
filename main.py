@@ -489,7 +489,7 @@ def installer(progress_var):
 
     launcher_profile_data = json_read(launcher_profiles)
 
-    mod_profile = {"icon": "Grass", "gameDir": mod_dir, "lastVersionId": mod.loader, "name": mod.name,
+    mod_profile = {"icon": "Grass", "gameDir": mod_dir, "lastVersionId": mod.loader_final, "name": mod.name,
                    "type": "custom"}
 
     profile = launcher_profile_data["profiles"]
