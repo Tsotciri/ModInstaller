@@ -1,20 +1,20 @@
 from tkinter import *
-from sys import exit
 import sys
 from tkinter import filedialog
 from tkinter import ttk
 import tkinter as tk
 import threading
 from sys import exit
-from tkinter.font import Font
+import ctypes
 from tkinter import messagebox as mb
+import subprocess
 import os
-from time import sleep
 import requests
 import json
 import zipfile
 
-#Class
+
+# Class
 
 class MrpackIndexer:
     def __init__(self, f_path):
@@ -45,11 +45,17 @@ class MrpackIndexer:
             # Assign variables
             self.name = data["name"]
             self.description = data["summary"]
-            self.version = data["dependencies"]["minecraft"]
+            self.game_version = data["dependencies"]["minecraft"]
             self.mod_id = self.name.lower().replace(" ", "")
             loader_type = list(data["dependencies"].keys())[1]
-            self.loader = loader_type + '-' + data["dependencies"][loader_type] + '-' + self.version
+            self.loader = loader_type
+            self.loader_version = data["dependencies"][loader_type]
+            if loader_type == 'forge':
+                self.loader_final = f'{self.game_version}-forge-{self.loader_version}'
+            elif loader_type == 'fabric-loader':
+                self.loader_final = f'fabric-loader-{self.loader_version}-{self.game_version}'
             self.mod_count = loops
+
 
 class ModIndexer:
     def __init__(self, f_path):
@@ -75,8 +81,9 @@ class ModIndexer:
             self.name = data["name"]
             self.description = data["description"]
             self.mod_id = data["id"]
-            self.version = data["version"]
+            self.game_version = data["game_version"]
             self.loader = data["loader"]
+            self.loader_version = data["loader_version"]
             self.creator = data["creator"]
             self.mod_count = loops
 
@@ -86,20 +93,11 @@ class ModIndexer:
 
 # Variables and default directory
 
-progress = False
-
-user = os.getlogin()
-app_directory = f"C:\\Users\\{user}\\AppData\\Roaming\\.mod-installer\\"
-install_path = app_directory + "clients"
-
-launcher_profiles = f"C:\\Users\\{user}\\AppData\\Roaming\\.minecraft\\launcher_profiles.json"
-installed_versions_path = f"C:\\Users\\{user}\\AppData\\Roaming\\.minecraft\\versions"
-
-# Functions and shit
-
-def json_read(file):
-    with open(file, "r") as f:
-        return json.load(f)
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
 
 
 def json_write(data, file):
@@ -107,6 +105,13 @@ def json_write(data, file):
         json.dump(data, f, indent=2)
         return True
 
+
+def json_read(file):
+    with open(file, "r") as f:
+        return json.load(f)
+
+
+# Functions and shit
 
 def install():
     global progress
@@ -119,6 +124,178 @@ def destroy():
     quit()
 
 
+progress = False
+
+user = os.getlogin()
+
+if os.path.exists(f"C:\\Users\\{user}\\AppData\\Roaming\\.mod-installer\\.installed"):
+    print("yesyes")
+else:
+    # if not is_admin():
+    #    # Relaunch the script with admin rights
+    #    print("Requesting admin privileges...")
+    #    script = sys.argv[0]
+    #    params = ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
+    #    ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script}" {params}', None, 1)
+    #    sys.exit()
+    # print("NONO")
+
+    try:
+        os.mkdir(f"C:\\Users\\{user}\\AppData\\Roaming\\.mod-installer")
+        os.mkdir(f"C:\\Users\\{user}\\AppData\\Roaming\\.mod-installer\\clients")
+        os.mkdir(f"C:\\Users\\{user}\\AppData\\Roaming\\.mod-installer\\temp")
+    except:
+        pass
+
+    with open(f"C:\\Users\\{user}\\AppData\\Roaming\\.mod-installer\\.installed", "x") as f:
+        f.write("")
+        print("created .installed")
+    with open(f"C:\\Users\\{user}\\AppData\\Roaming\\.mod-installer\\data.json", "x") as f:
+        print("created data.json")
+    data = '{"default_directory" : "","packs": {}}'
+    jdata = json.loads(data)
+    json_write(jdata, f"C:\\Users\\{user}\\AppData\\Roaming\\.mod-installer\\data.json")
+    data = json_read(f"C:\\Users\\{user}\\AppData\\Roaming\\.mod-installer\\data.json")
+    data["default_directory"] = f"C:\\Users\\{user}\\AppData\\Roaming\\.mod-installer\\clients"
+    json_write(data, f"C:\\Users\\{user}\\AppData\\Roaming\\.mod-installer\\data.json")
+
+app_directory = f"C:\\Users\\{user}\\AppData\\Roaming\\.mod-installer\\"
+install_path = app_directory + "clients"
+
+launcher_profiles = f"C:\\Users\\{user}\\AppData\\Roaming\\.minecraft\\launcher_profiles.json"
+installed_versions_path = f"C:\\Users\\{user}\\AppData\\Roaming\\.minecraft\\versions"
+minecraft_path = f"C:\\Users\\{user}\\AppData\\Roaming\\.minecraft"
+
+
+def loader_intaller(mod, usr, mp):
+    path = f"C:\\Users\\{usr}\\AppData\\Roaming\\.mod-installer\\"
+
+    global link
+    if mod.loader == 'fabric-loader':
+
+        # Getting latest fabric installer version:
+        try:
+            response = requests.get("https://meta.fabricmc.net//v2/versions/installer")
+        except:
+            mb.showerror(title="Connection Error",
+                         message="Something went wrong while trying to download the loader, Check your internet "
+                                 "connection then try again later...")
+            exit()
+
+        latest_response_data = json.loads(response.content)[0]
+        fabric_loader_version = latest_response_data['version']
+
+        print(fabric_loader_version)
+
+        if os.path.exists(path + f"temp\\fabric-installer-{fabric_loader_version}.jar") == False:
+            print('fabric')
+            link = latest_response_data['url']
+
+            response = requests.head(link)
+
+            print(link)
+
+            file_size = int(response.headers.get('Content-Length'))
+
+            print(file_size)
+
+            chunk_size = 8192
+            chunk_n = file_size // chunk_size
+
+            progress_per_chunk = round(100 / chunk_n, 5)
+
+            f = open(path + f"temp\\fabric-installer-{fabric_loader_version}.jar", 'x')
+            f.close()
+
+            with requests.get(link, stream=True) as response:
+
+                # response.raise_for_status()
+                with open(path + f"temp\\fabric-installer-{fabric_loader_version}.jar", 'wb') as f:
+
+                    for j, chunk in enumerate(response.iter_content(chunk_size=chunk_size)):
+                        if chunk:  # Filter out keep-alive new chunks
+                            f.write(chunk)
+
+            print('Loader installer installed')
+        print('Running installer')
+
+        # Define the command and its arguments
+        command = [
+            "java",
+            "-jar",
+            path + f"temp\\fabric-installer-{fabric_loader_version}.jar",
+            "client",
+            "-dir", mp,  # Replace with your Minecraft directory
+            "-mcversion", str(mod.game_version),  # Replace with your desired Minecraft version
+            "-loader", str(mod.loader_version)  # Replace with your desired Fabric Loader version
+        ]
+
+        # Execute the command
+        result = subprocess.run(command, capture_output=True, text=True)
+
+        # Output the results
+        print("Return code:", result.returncode)
+        print("Standard Output:\n", result.stdout)
+        print("Standard Error:\n", result.stderr)
+        mb.showinfo(title="Success", message=f"Successfully installed {mod.loader_final}")
+
+    elif mod.loader == 'forge':
+        link = f"https://maven.minecraftforge.net/net/minecraftforge/forge/{mod.game_version}-{mod.loader_version}/forge-{mod.game_version}-{mod.loader_version}-installer.jar"
+
+        if os.path.exists(path + f"temp\\forge-{mod.game_version}-{mod.loader_version}--installer.jar") == False:
+            print('fabric')
+
+            try:
+                response = requests.get(link)
+            except:
+                mb.showerror(title="Connection Error",
+                             message="Something went wrong while trying to download the loader, Check your internet "
+                                     "connection then try again later...")
+
+                exit()
+
+            print(link)
+
+            file_size = int(response.headers.get('Content-Length'))
+
+            print(file_size)
+
+            chunk_size = 8192
+            chunk_n = file_size // chunk_size
+
+            progress_per_chunk = round(100 / chunk_n, 5)
+
+            f = open(path + f"temp\\forge-{mod.game_version}-{mod.loader_version}-installer.jar", 'x')
+            f.close()
+
+            with requests.get(link, stream=True) as response:
+
+                # response.raise_for_status()
+                with open(path + f"temp\\forge-{mod.game_version}-{mod.loader_version}-installer.jar", 'wb') as f:
+
+                    for j, chunk in enumerate(response.iter_content(chunk_size=chunk_size)):
+                        if chunk:  # Filter out keep-alive new chunks
+                            f.write(chunk)
+
+        print("Dowloaded forge")
+        print("Installing forge")
+        command = [
+            "java",
+            "-jar",
+            path + f"temp\\forge-{mod.game_version}-{mod.loader_version}-installer.jar",
+            "--installClient"
+        ]
+
+        # Execute the command
+        result = subprocess.run(command, cwd=mp, capture_output=True, text=True)
+
+        # Output the results
+        print("Return code:", result.returncode)
+        print("Standard Output:\n", result.stdout)
+        print("Standard Error:\n", result.stderr)
+
+        mb.showinfo(title="Success", message=f"Successfully installed {mod.loader_final}")
+
 def browse_button():
     filename = filedialog.askdirectory()
     if filename != "":
@@ -126,6 +303,7 @@ def browse_button():
         data["default_directory"] = filename
         json_write(data, app_directory + "data.json")
         gui_path.set(filename)
+
 
 # Root
 root = Tk()
@@ -136,15 +314,23 @@ if len(sys.argv) > 1:
         print("MR PACK DECTED")
         mb.showinfo(title='Warning',
                     message="The pack you are trying to install is an mrpack, mrpacks have limited support.")
-        mod = MrpackIndexer(file_path)
+        try:
+            mod = MrpackIndexer(file_path)
+        except json.decoder.JSONDecodeError:
+            mb.showerror(title="Reading Error",
+                         message="An error was made while reading the modpack, please verify the syntax of the mod file")
     else:
-        mod = ModIndexer(file_path)
+        try:
+            mod = ModIndexer(file_path)
+        except json.decoder.JSONDecodeError:
+            mb.showerror(title="Reading Error",
+                         message="An error was made while reading the modpack, please verify the syntax of the mod file")
+
 else:
-    mb.showerror(title=f"MoDpack file not found",
+    mb.showerror(title=f"Modpack file not found",
                  message="A path to a modpack file has not been supplied (E1)")
     root.destroy()
     exit()
-
 
 # Geometry and window size
 weight, height = 400, 200
@@ -168,7 +354,7 @@ text_write = ttk.Entry(root, width=50, textvariable=gui_path)
 title = Label(root, textvariable=gui_name, font=("Console", 24))
 desc = Label(root, textvariable=gui_desc, font=("Console", 10))
 path_text = Label(root, text="Current directory:", font=("Console", 8))
-mod_info = Label(root, text=f"{mod.version} | {mod.mod_count} mods", font=("Console", 10))
+mod_info = Label(root, text=f"{mod.game_version} | {mod.mod_count} mods", font=("Console", 10))
 
 change_dir = Button(root, text="browse", command=browse_button)
 install = Button(root, text="install", command=install, width=10, )
@@ -179,6 +365,7 @@ gui_name.set(mod.name)
 gui_desc.set(mod.description)
 
 data = json_read(app_directory + "data.json")
+
 gui_path.set(data["default_directory"])
 
 title.place(relx=0.5, rely=0.1, anchor="center")
@@ -243,10 +430,13 @@ def installer(progress_var):
 
     installed_versions = os.listdir(installed_versions_path)
     print(installed_versions)
-    if mod.loader not in installed_versions:
-        mb.showerror(title=f"{mod.loader} is not installed",
-                     message="Please install it and try again")
-        win2.destroy()
+    if mod.loader_final not in installed_versions:
+        print('Loader not found, initiating installer')
+        mb.showerror(title="Mod Loader not found",
+                     message=f"You dont have {mod.loader_final} , it will be automaticly downloaded now")
+
+        loader_intaller(mod,user,minecraft_path)
+
     else:
         print(f"{mod.loader} installed, continuing")
     try:
@@ -258,8 +448,8 @@ def installer(progress_var):
         win2.destroy()
 
     chunk_size = 8192
-    progress_per_mod = 100 // mod.mod_count
-
+    progress_per_mod = 100 / mod.mod_count
+    print(progress_per_mod)
     for i, (name, link) in enumerate(mod.mods_dir.items()):
 
         try:
@@ -309,7 +499,7 @@ def installer(progress_var):
     print("Pofile created successfully")
     print("Saving")
 
-    mmi_mod_profile = {"name": mod.name, "desc": mod.description, "version": mod.version, "mods": mod.mod_count}
+    mmi_mod_profile = {"name": mod.name, "desc": mod.description, "version": mod.game_version, "mods": mod.mod_count}
 
     mmi_mod_profile_data = json_read(app_directory + "data.json")
     packs = mmi_mod_profile_data['packs']
