@@ -12,10 +12,44 @@ import os
 from time import sleep
 import requests
 import json
-from mrpack import MrpackIndexer
+import zipfile
 
-# Class
+#Class
 
+class MrpackIndexer:
+    def __init__(self, f_path):
+        print(f_path)
+        self.file_path = f_path
+
+        # Open file
+        with zipfile.ZipFile(self.file_path, "r") as z:
+            # Read data
+            with z.open('modrinth.index.json', 'r') as f:
+                json_bytes = f.read()
+
+            json_str = json_bytes.decode('utf-8')
+
+            data = json.loads(json_str)
+
+            # Get mods
+            mods = data['files']
+
+            # Make a list of the mods
+            self.mods_dir = {}
+            loops = 0
+            for mod in mods:
+                i = data['files'].index(mod)
+                self.mods_dir[data['files'][i]['path'].strip('mods/')] = data['files'][i]['downloads'][0]
+                loops += 1
+
+            # Assign variables
+            self.name = data["name"]
+            self.description = data["summary"]
+            self.version = data["dependencies"]["minecraft"]
+            self.mod_id = self.name.lower().replace(" ", "")
+            loader_type = list(data["dependencies"].keys())[1]
+            self.loader = loader_type + '-' + data["dependencies"][loader_type] + '-' + self.version
+            self.mod_count = loops
 
 class ModIndexer:
     def __init__(self, f_path):
